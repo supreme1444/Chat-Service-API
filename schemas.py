@@ -26,12 +26,3 @@ class MessageSch(BaseModel):
 
     class Config:
         from_attributes = True
-
-class Message(BaseModel):
-    username: str
-    recipient_id: str
-    message: str
-    timestamp: datetime
-
-    class Config:
-        from_attributes = True
