@@ -1,0 +1,37 @@
+version: '3.8'
+
+services:
+  postgresql:
+    container_name: postgre_db1
+    image: postgres:16
+    env_file:
+      - .env
+    environment:
+      - POSTGRES_USER=db
+      - POSTGRES_PASSWORD=db
+      - POSTGRES_DB=db
+    ports:
+      - "5433:5432"
+    restart: on-failure
+    networks:
+      - custom
+
+  #app:
+    #container_name: "app"
+    #image: app
+    #depends_on:
+      #- postgresql
+    #env_file:
+      #- .env
+    #build:
+      #context: .
+      #dockerfile: Dockerfile
+    #ports:
+      #- "8000:8000"
+    #restart: on-failure
+    #networks:
+      #- custom
+
+networks:
+  custom:
+    driver: bridge
