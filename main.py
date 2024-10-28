@@ -2,6 +2,7 @@ from typing import List
 from fastapi import FastAPI, Depends, HTTPException, status
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
+from starlette.responses import HTMLResponse
 from starlette.staticfiles import StaticFiles
 import models, schemas, auth
 from jose import JWTError, jwt
@@ -9,9 +10,17 @@ from jose import JWTError, jwt
 app = FastAPI()
 
 app.mount("/static", StaticFiles(directory="static"), name="static")
-@app.post("/register", response_model=schemas.UserSch)
+@app.get("/", response_class=HTMLResponse)
+async def read_root():
+    with open("static/index.html") as f:
+        return f.read()
+@app.post("/register")
 def register(user: schemas.UserCreate, db: Session = Depends(auth.get_db)):
-    return auth.create_user(db=db, user=user)
+    try:
+        auth.create_user(db, user)
+        return {"detail": "User  created successfully"}
+    except HTTPException as e:
+        raise e
 
 @app.post("/token")
 def login(form_data: auth.OAuth2PasswordRequestForm = Depends(), db: Session = Depends(auth.get_db)):
@@ -71,7 +80,12 @@ async def get_message_history(recipient_username: str, token: str = Depends(auth
                 (models.MessageUser.sender_id == recipient.id) & (models.MessageUser.recipient_id == sender.id)
             )
         ).order_by(models.MessageUser.datetime).all()
-        return messages
+        return [schemas.MessageSch(
+            sender_id=message.sender_id,
+            recipient_id=message.recipient_id,
+            message=message.message,
+            timestamp=message.datetime
+        ) for message in messages]
     except JWTError:
         raise HTTPException(status_code=401, detail="Invalid token")
 
