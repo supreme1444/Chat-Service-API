@@ -1,3 +1,4 @@
+import asyncio
 from typing import List
 from fastapi import FastAPI, Depends, HTTPException, status
 from sqlalchemy import or_
@@ -7,9 +8,14 @@ from starlette.staticfiles import StaticFiles
 import models, schemas, auth
 from jose import JWTError, jwt
 
+from telegram_bot import notify_new_message, start_bot
+
 app = FastAPI()
 
 app.mount("/static", StaticFiles(directory="static"), name="static")
+@app.on_event("startup")
+async def startup():
+    asyncio.create_task(start_bot())
 @app.get("/", response_class=HTMLResponse)
 async def read_root():
     with open("static/index.html") as f:
@@ -53,7 +59,7 @@ async def create_message(message: schemas.MessageCreate, db: Session = Depends(a
         db.add(new_message)
         db.commit()
         db.refresh(new_message)
-
+        await notify_new_message(f'Новое сообщение от {username}')
         return {"detail": "Message created", "message_id": new_message.id}
     except JWTError:
         raise HTTPException(status_code=401, detail="Invalid token")
@@ -81,7 +87,7 @@ async def get_message_history(recipient_username: str, token: str = Depends(auth
             )
         ).order_by(models.MessageUser.datetime).all()
         return [schemas.MessageSch(
-            sender_id=message.sender_id,
+           sender_id=message.sender_id,
             recipient_id=message.recipient_id,
             message=message.message,
             timestamp=message.datetime
@@ -89,9 +95,25 @@ async def get_message_history(recipient_username: str, token: str = Depends(auth
     except JWTError:
         raise HTTPException(status_code=401, detail="Invalid token")
 
-@app.get("/")
+@app.get("/messages/history/{refresh}")
+async def get_refresh(recipient_username: str,token: str = Depends(auth.oauth2_scheme), db: Session = Depends(auth.get_db)):
+        sender = db.query(models.User).filter(models.User.token == token).first()
+        recipient = db.query(models.User).filter(models.User.username == recipient_username).first()
+        messages = db.query(models.MessageUser).filter(
+            or_(
+                (models.MessageUser.sender_id == sender.id) & (models.MessageUser.recipient_id == recipient.id),
+                (models.MessageUser.sender_id == recipient.id) & (models.MessageUser.recipient_id == sender.id)
+            )
+        ).order_by(models.MessageUser.datetime).all()
+
+        return [schemas.MessageSch(
+            sender_id=message.sender_id,
+            recipient_id=message.recipient_id,
+            message=message.message,
+            timestamp=message.datetime
+        ) for message in messages]
+
 def root():
     return {"message": "Welcome to the chat service!"}
 
-# Запуск приложения с помощью uvicorn
-# uvicorn main:app --reload
+
