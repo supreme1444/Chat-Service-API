@@ -16,21 +16,21 @@ services:
     networks:
       - custom
 
-  #app:
-    #container_name: "app"
-    #image: app
-    #depends_on:
-      #- postgresql
-    #env_file:
-      #- .env
-    #build:
-      #context: .
-      #dockerfile: Dockerfile
-    #ports:
-      #- "8000:8000"
-    #restart: on-failure
-    #networks:
-      #- custom
+  app:
+    container_name: "app"
+    image: app
+    depends_on:
+      - postgresql
+    env_file:
+      - .env
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    restart: on-failure
+    networks:
+      - custom
 
 networks:
   custom:

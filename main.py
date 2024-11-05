@@ -1,15 +1,16 @@
 import asyncio
 from typing import List
+from fastapi.security import OAuth2PasswordRequestForm
 from fastapi import FastAPI, Depends, HTTPException, status
-from sqlalchemy import or_
 from sqlalchemy.orm import Session
 from starlette.responses import HTMLResponse
 from starlette.staticfiles import StaticFiles
-import models, schemas, auth
+from app.auth import auth
+from app.models import models
+from app.api import schemas
 from jose import JWTError, jwt
-
-from telegram_bot import notify_new_message, start_bot
-
+from app.intigrathion.telegram_bot import notify_new_message, start_bot
+from sqlalchemy import or_
 app = FastAPI()
 
 app.mount("/static", StaticFiles(directory="static"), name="static")
@@ -29,7 +30,7 @@ def register(user: schemas.UserCreate, db: Session = Depends(auth.get_db)):
         raise e
 
 @app.post("/token")
-def login(form_data: auth.OAuth2PasswordRequestForm = Depends(), db: Session = Depends(auth.get_db)):
+def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(auth.get_db)):
     user = auth.authenticate_user(db, form_data.username, form_data.password)
     if not user:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials", headers={"WWW-Authenticate": "Bearer"})
@@ -115,5 +116,3 @@ async def get_refresh(recipient_username: str,token: str = Depends(auth.oauth2_s
 
 def root():
     return {"message": "Welcome to the chat service!"}
-
-
